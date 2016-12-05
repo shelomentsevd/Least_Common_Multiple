@@ -19,7 +19,9 @@ class ThreadManager
 
     // Members
     std::map<std::thread::id, TThreadData> mThreadsPool;
-
+    // Number stack and his mutex
+    std::stack<unsigned int> mNumbersStack;
+    std::mutex mNumbersStackMutex;
 public:
     static ThreadManager& getInstance()
     {
@@ -45,6 +47,16 @@ public:
             TThreadData && threadData = std::make_pair(std::move(thread), TPrimes());
             mThreadsPool.emplace(threadId, std::move(threadData));
         } // Threads initialization
+    }
+
+    void push(unsigned int number)
+    {
+
+    }
+
+    unsigned int pop()
+    {
+        
     }
 
     ThreadManager(ThreadManager const&) = delete;
