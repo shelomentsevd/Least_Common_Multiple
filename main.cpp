@@ -78,6 +78,7 @@ public:
                     mutexLock.unlock();
                     mStackEmpty.notify_all();
 
+                    TPrimes numberPrimes;
                     while( number != 1 )
                     {
 
@@ -85,14 +86,38 @@ public:
                         for( auto it = mPrimes.begin(); 
                              !isMultiplier && (*it) <= number && it != mPrimes.end(); 
                              ++it  )
-                        { // Get numbers multiples 
+                        { // Number factorization
                             isMultiplier = (number % (*it)) == 0;
 
                             if( isMultiplier )
                             {
+                                auto primeIt = numberPrimes.find(*it);
+                                if( primeIt != numberPrimes.end() )
+                                    numberPrimes[*it] += 1;
+                                else
+                                    numberPrimes[*it] = 1;
 
+                                std::cout << (*it) << std::endl;
+                                number = number / (*it);
                             }
+                        } // Number factorization
+                    }
+
+                    // Merge numberPrimes into threadPrimes
+                    for( auto it = numberPrimes.begin(); it != numberPrimes.end(); ++it )
+                    {
+                        unsigned int itPrime = it->first;
+                        unsigned int itPower = it->second;
+
+                        auto threadPrimeIt = threadPrimes.find(itPrime);
+                        if( threadPrimeIt != threadPrimes.end() )
+                        {
+                            unsigned int threadPrimeItPower = threadPrimeIt->second;
+                            if( threadPrimeItPower < itPower )
+                                threadPrimes[itPrime] = itPower;
                         }
+                        else
+                            threadPrimes[itPrime] = itPower;
                     }
                 } while(numberIsNotZero);
             });// Thread life cicle
