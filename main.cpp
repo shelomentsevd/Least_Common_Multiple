@@ -48,28 +48,53 @@ public:
         { // Threads initialization
             std::thread && thread = std::thread([&]() -> void
             {  // Thread life cicle
-                // Wait until we got data inside stack
-                std::unique_lock<std::mutex> mutexLock(mNumbersStackMutex);
-                mStackEmpty.wait(mutexLock, [&]
-                {  // Wait until stack empty
-                    return !mNumbersStack.empty();
-                });// Wait until stack empty
+                bool numberIsNotZero = true;
+                std::thread::id threadId = std::this_thread::get_id();
+                TThreadData & threadData = mThreadsPool[threadId];
+                TPrimes & threadPrimes = threadData.second;
 
-                unsigned int number = mNumbersStack.top();
-                
-                if( number )
-                { // Remove from stack
-                    mNumbersStack.pop();
-                }
-                else
-                { // If zero - terminate thread
-                    // TODO: terminate thread   
-                }
+                do
+                {
+                    // Wait until we got data inside stack
+                    std::unique_lock<std::mutex> mutexLock(mNumbersStackMutex);
+                    mStackEmpty.wait(mutexLock, [&]
+                    {  // Wait until stack empty
+                        return !mNumbersStack.empty();
+                    });// Wait until stack empty
 
-                // We got number, unlock and notify other threads
-                mutexLock.unlock();
-                mStackEmpty.notify_all();
-                // TODO: Calculations here
+                    unsigned int number = mNumbersStack.top();
+                    
+                    if( number )
+                    { // Remove from stack
+                        mNumbersStack.pop();
+                    }
+                    else
+                    { // If zero - terminate thread
+                        numberIsNotZero = false;
+                        break;
+                    }
+
+                    // We got number, unlock and notify other threads
+                    mutexLock.unlock();
+                    mStackEmpty.notify_all();
+
+                    while( number != 1 )
+                    {
+
+                        bool isMultiplier = false;
+                        for( auto it = mPrimes.begin(); 
+                             !isMultiplier && (*it) <= number && it != mPrimes.end(); 
+                             ++it  )
+                        { // Get numbers multiples 
+                            isMultiplier = (number % (*it)) == 0;
+
+                            if( isMultiplier )
+                            {
+
+                            }
+                        }
+                    }
+                } while(numberIsNotZero);
             });// Thread life cicle
             
             std::thread::id threadId = thread.get_id();
