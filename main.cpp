@@ -3,6 +3,7 @@
 #include <vector>
 #include <utility>
 #include <map>
+#include <cmath>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
@@ -30,6 +31,26 @@ class ThreadManager
     std::mutex mNumbersStackMutex;
     // Condition variable
     std::condition_variable mStackEmpty;
+    // Helpers
+    void merge(const TPrimes & from, TPrimes & to)
+    {
+        for( auto it = from.begin(); it != from.end(); ++it )
+        {
+            unsigned itPrime = it->first;
+            unsigned itPower = it->second;
+
+            auto toPrimeIt = to.find(itPrime);
+            if( toPrimeIt != to.end() )
+            {
+                unsigned toPrimeItPower = toPrimeIt->second;
+                if( toPrimeItPower < itPower )
+                    to[itPrime] = itPower;
+            }
+            else
+                to[itPrime] = itPower;
+        }
+    }
+
 public:
     static ThreadManager& getInstance()
     {
@@ -78,6 +99,7 @@ public:
                     mutexLock.unlock();
                     mStackEmpty.notify_all();
 
+                    // Do number factorization
                     TPrimes numberPrimes;
                     while( number != 1 )
                     {
@@ -97,28 +119,13 @@ public:
                                 else
                                     numberPrimes[*it] = 1;
 
-                                std::cout << (*it) << std::endl;
                                 number = number / (*it);
                             }
                         } // Number factorization
                     }
 
                     // Merge numberPrimes into threadPrimes
-                    for( auto it = numberPrimes.begin(); it != numberPrimes.end(); ++it )
-                    {
-                        unsigned int itPrime = it->first;
-                        unsigned int itPower = it->second;
-
-                        auto threadPrimeIt = threadPrimes.find(itPrime);
-                        if( threadPrimeIt != threadPrimes.end() )
-                        {
-                            unsigned int threadPrimeItPower = threadPrimeIt->second;
-                            if( threadPrimeItPower < itPower )
-                                threadPrimes[itPrime] = itPower;
-                        }
-                        else
-                            threadPrimes[itPrime] = itPower;
-                    }
+                    merge(numberPrimes, threadPrimes);
                 } while(numberIsNotZero);
             });// Thread life cicle
             
@@ -136,18 +143,26 @@ public:
         mStackEmpty.notify_all();
     }
 
-    ThreadManager(ThreadManager const&) = delete;
-    ThreadManager& operator=(const ThreadManager&) = delete;
-    ~ThreadManager()
+    // Waits until all threads finish work and writes their data to result using merge
+    void stop(TPrimes & result)
     {
         for (auto && threadIt: mThreadsPool) 
         {
             TThreadData & threadData = threadIt.second;
             std::thread & thread = threadData.first;
             if( thread.joinable() )
+            {
                 thread.join();
+                // Merge data to result
+                TPrimes & threadPrimes = threadData.second;
+                merge(threadPrimes, result);
+            }
         }
     }
+
+    ThreadManager(ThreadManager const&) = delete;
+    ThreadManager& operator=(const ThreadManager&) = delete;
+    ~ThreadManager() {}
 private:
     ThreadManager() 
     {
@@ -170,7 +185,17 @@ int main()
 
         ThreadManager::getInstance().add(number);
     } while ( number );
-    // TODO: Get data from threads, show result, free memory
+
+    std::map<unsigned, unsigned> result;
+    ThreadManager::getInstance().stop(result);
+
+    unsigned int lcm = 1;
+    for( auto && it: result )
+    {
+        std::cout << it.first << " : " << it.second << std::endl;
+        lcm = lcm * pow(it.first, it.second);
+    }
+    std::cout << "Least common multiplier is " << lcm << std::endl;
 
     return 0;
 }
